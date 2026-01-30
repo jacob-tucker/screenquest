@@ -138,3 +138,5 @@ CREATE POLICY "Users can view own recordings" ON storage.objects FOR SELECT TO a
     USING (bucket_id = 'recordings' AND (storage.foldername(name))[1] = auth.uid()::text);
 CREATE POLICY "Admins can view all recordings" ON storage.objects FOR SELECT TO authenticated
     USING (bucket_id = 'recordings' AND EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
+CREATE POLICY "Admins can delete recordings" ON storage.objects FOR DELETE TO authenticated
+    USING (bucket_id = 'recordings' AND EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));

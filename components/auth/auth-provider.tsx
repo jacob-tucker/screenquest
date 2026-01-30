@@ -34,32 +34,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data: { session } } = await supabase.auth.getSession()
       setSession(session)
       setUser(session?.user ?? null)
-
-      if (session?.user) {
-        const { data, error } = await (supabase
-          .from('profiles') as any)
-          .select('*')
-          .eq('id', session.user.id)
-          .single()
-
-        console.log('Profile fetch:', { data, error, userId: session.user.id })
-
-        // Use profile from DB, fallback to user metadata for avatar/name
-        const userMeta = session.user.user_metadata
-        const profileData = data ? (data as Profile) : {
-          id: session.user.id,
-          email: session.user.email || '',
-          full_name: userMeta?.full_name || userMeta?.name || null,
-          avatar_url: userMeta?.avatar_url || userMeta?.picture || null,
-          role: 'user' as const,
-          total_points: 0,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }
-        console.log('Setting profile:', profileData)
-        setProfile(profileData)
-      }
-
       setLoading(false)
     }
 

@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/ui/badge'
 import { VideoPlayer } from '@/components/submissions/video-player'
-import { ArrowLeft, User, Target, Star, Check, X } from 'lucide-react'
+import { ArrowLeft, User, Target, Star, Check, X, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { formatDateTime } from '@/lib/utils/format'
 
@@ -21,6 +21,7 @@ interface SubmissionDetails {
   reviewed_at: string | null
   user: { email: string; full_name: string | null }
   campaign: { title: string; points_reward: number; target_url: string }
+  recording_path: string
   recording_duration: number | null
 }
 
@@ -55,6 +56,35 @@ export function SubmissionReview({ submission, videoUrl }: SubmissionReviewProps
     } catch (error) {
       console.error('Review error:', error)
       alert('Failed to update submission')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!confirm('Are you sure you want to delete this submission? This cannot be undone.')) {
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const { error: storageError } = await supabase.storage
+        .from('recordings')
+        .remove([submission.recording_path])
+
+      if (storageError) throw storageError
+
+      const { error } = await (supabase
+        .from('submissions') as any)
+        .delete()
+        .eq('id', submission.id)
+
+      if (error) throw error
+
+      router.push('/admin/submissions')
+    } catch (error) {
+      console.error('Delete error:', error)
+      alert('Failed to delete submission')
     } finally {
       setSubmitting(false)
     }
@@ -182,6 +212,18 @@ export function SubmissionReview({ submission, videoUrl }: SubmissionReviewProps
           </CardContent>
         </Card>
       )}
+
+      <div className="border-t border-zinc-800 pt-6">
+        <Button
+          onClick={handleDelete}
+          disabled={submitting}
+          variant="secondary"
+          className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+        >
+          <Trash2 className="h-4 w-4" />
+          Delete Submission
+        </Button>
+      </div>
     </div>
   )
 }

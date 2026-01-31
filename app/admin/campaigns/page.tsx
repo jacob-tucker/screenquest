@@ -5,6 +5,7 @@ import { Plus, Star, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { formatDate } from "@/lib/utils/format";
 import { getAllCampaigns } from "@/lib/data/campaigns";
+import { CampaignActions } from "./CampaignActions";
 
 export default async function AdminCampaignsPage() {
   const campaigns = await getAllCampaigns();
@@ -65,6 +66,10 @@ export default async function AdminCampaignsPage() {
                     <span>Created {formatDate(campaign.created_at)}</span>
                   </div>
                 </div>
+                <CampaignActions
+                  campaignId={campaign.id}
+                  campaignTitle={campaign.title}
+                />
               </CardContent>
             </Card>
           ))}

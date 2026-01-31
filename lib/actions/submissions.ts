@@ -109,24 +109,6 @@ export async function reviewSubmission(
     return { error: updateError.message };
   }
 
-  // If approved, update user's total points
-  if (approved && pointsToAward > 0) {
-    const { data: userProfile } = await supabase
-      .from("profiles")
-      .select("total_points")
-      .eq("id", submission.user_id)
-      .single();
-
-    if (userProfile) {
-      await supabase
-        .from("profiles")
-        .update({
-          total_points: (userProfile.total_points ?? 0) + pointsToAward,
-        })
-        .eq("id", submission.user_id);
-    }
-  }
-
   revalidatePath("/admin/submissions");
   revalidatePath(`/admin/submissions/${id}`);
   revalidatePath("/dashboard/leaderboard");
@@ -185,4 +167,63 @@ export async function deleteSubmission(id: string) {
   revalidatePath("/dashboard");
 
   return { success: true };
+}
+
+export async function deleteAllSubmissionsForCampaign(campaignId: string) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Unauthorized" };
+  }
+
+  // Verify admin role
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (profile?.role !== "admin") {
+    return { error: "Unauthorized - Admin only" };
+  }
+
+  // Get all submissions for this campaign to find recording paths
+  const { data: submissions } = await supabase
+    .from("submissions")
+    .select("id, recording_path")
+    .eq("campaign_id", campaignId);
+
+  if (!submissions || submissions.length === 0) {
+    return { success: true, deleted: 0 };
+  }
+
+  // Delete all storage files
+  const recordingPaths = submissions
+    .map((s) => s.recording_path)
+    .filter((path): path is string => !!path);
+
+  if (recordingPaths.length > 0) {
+    await supabase.storage.from("recordings").remove(recordingPaths);
+  }
+
+  // Delete all submission records
+  const { error } = await supabase
+    .from("submissions")
+    .delete()
+    .eq("campaign_id", campaignId);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/admin/submissions");
+  revalidatePath("/admin/campaigns");
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/campaigns");
+
+  return { success: true, deleted: submissions.length };
 }

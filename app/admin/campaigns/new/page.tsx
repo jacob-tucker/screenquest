@@ -1,54 +1,42 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input, Textarea } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { ArrowLeft } from 'lucide-react'
-import Link from 'next/link'
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input, Textarea } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import { createCampaign } from "@/lib/actions/campaigns";
 
 export default function NewCampaignPage() {
-  const router = useRouter()
-  const supabase = createClient()
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    setLoading(true)
-    setError(null)
-
-    const form = e.currentTarget
-    const formData = new FormData(form)
-
-    const title = formData.get('title') as string
-    const description = formData.get('description') as string
-    const target_url = formData.get('target_url') as string
-    const points_reward = parseInt(formData.get('points_reward') as string, 10)
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('Not authenticated')
+      const formData = new FormData(e.currentTarget);
+      const result = await createCampaign(formData);
 
-      const { error: insertError } = await (supabase.from('campaigns') as any).insert({
-        title,
-        description,
-        target_url,
-        points_reward,
-        created_by: user.id,
-      })
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
 
-      if (insertError) throw insertError
-
-      router.push('/admin/campaigns')
+      router.push("/admin/campaigns");
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create campaign')
+      setError(
+        err instanceof Error ? err.message : "Failed to create campaign"
+      );
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="space-y-6">
@@ -99,13 +87,11 @@ export default function NewCampaignPage() {
               required
             />
 
-            {error && (
-              <p className="text-sm text-red-400">{error}</p>
-            )}
+            {error && <p className="text-sm text-red-400">{error}</p>}
 
             <div className="flex gap-2">
               <Button type="submit" disabled={loading}>
-                {loading ? 'Creating...' : 'Create Campaign'}
+                {loading ? "Creating..." : "Create Campaign"}
               </Button>
               <Link href="/admin/campaigns">
                 <Button type="button" variant="secondary">
@@ -117,5 +103,5 @@ export default function NewCampaignPage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

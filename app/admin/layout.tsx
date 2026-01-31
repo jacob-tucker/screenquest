@@ -1,29 +1,20 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
-import { AdminNav } from './AdminNav'
+import { AdminNav } from "./AdminNav";
+import { getCurrentProfile } from "@/lib/data/profiles";
+import { redirect } from "next/navigation";
 
 export default async function AdminLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const profile = await getCurrentProfile();
 
-  if (!user) {
-    redirect('/login')
+  if (!profile) {
+    redirect("/login");
   }
 
-  const { data } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  const profile = data as { role: string } | null
-
-  if (profile?.role !== 'admin') {
-    redirect('/dashboard')
+  if (profile.role !== "admin") {
+    redirect("/dashboard");
   }
 
   return (
@@ -31,10 +22,8 @@ export default async function AdminLayout({
       <AdminNav />
 
       <main className="pl-56">
-        <div className="mx-auto max-w-5xl p-6">
-          {children}
-        </div>
+        <div className="mx-auto max-w-5xl p-6">{children}</div>
       </main>
     </div>
-  )
+  );
 }

@@ -1,21 +1,14 @@
-import { createClient } from '@/lib/supabase/server'
-import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Plus, Star, ExternalLink } from 'lucide-react'
-import Link from 'next/link'
-import { formatDate } from '@/lib/utils/format'
-import { Campaign } from '@/lib/supabase/types'
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Star, ExternalLink } from "lucide-react";
+import Link from "next/link";
+import { formatDate } from "@/lib/utils/format";
+import { getAllCampaigns } from "@/lib/data/campaigns";
+import { CampaignActions } from "./CampaignActions";
 
 export default async function AdminCampaignsPage() {
-  const supabase = await createClient()
-
-  const { data } = await supabase
-    .from('campaigns')
-    .select('*')
-    .order('created_at', { ascending: false })
-
-  const campaigns = (data || []) as Campaign[]
+  const campaigns = await getAllCampaigns();
 
   return (
     <div className="space-y-6">
@@ -32,7 +25,7 @@ export default async function AdminCampaignsPage() {
         </Link>
       </div>
 
-      {!campaigns || campaigns.length === 0 ? (
+      {campaigns.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <p className="text-sm text-zinc-400">No campaigns yet</p>
@@ -44,18 +37,21 @@ export default async function AdminCampaignsPage() {
       ) : (
         <div className="space-y-3">
           {campaigns.map((campaign) => (
-            <Card key={campaign.id} className="hover:border-zinc-700 transition-colors">
+            <Card
+              key={campaign.id}
+              className="transition-colors hover:border-zinc-700"
+            >
               <CardContent className="flex items-center gap-4">
-                <div className="flex-1 min-w-0">
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-medium text-white truncate">
+                    <h3 className="truncate text-sm font-medium text-white">
                       {campaign.title}
                     </h3>
-                    <Badge variant={campaign.is_active ? 'success' : 'default'}>
-                      {campaign.is_active ? 'Active' : 'Inactive'}
+                    <Badge variant={campaign.is_active ? "success" : "default"}>
+                      {campaign.is_active ? "Active" : "Inactive"}
                     </Badge>
                   </div>
-                  <p className="mt-0.5 text-xs text-zinc-400 truncate">
+                  <p className="mt-0.5 truncate text-xs text-zinc-400">
                     {campaign.description}
                   </p>
                   <div className="mt-2 flex items-center gap-4 text-xs text-zinc-500">
@@ -70,11 +66,15 @@ export default async function AdminCampaignsPage() {
                     <span>Created {formatDate(campaign.created_at)}</span>
                   </div>
                 </div>
+                <CampaignActions
+                  campaignId={campaign.id}
+                  campaignTitle={campaign.title}
+                />
               </CardContent>
             </Card>
           ))}
         </div>
       )}
     </div>
-  )
+  );
 }

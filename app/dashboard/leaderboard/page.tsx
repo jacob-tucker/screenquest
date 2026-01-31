@@ -1,37 +1,35 @@
-import { createClient } from '@/lib/supabase/server'
-import { Card, CardContent } from '@/components/ui/card'
-import { Trophy, Medal, Award } from 'lucide-react'
-import { cn } from '@/lib/utils/cn'
-import { Profile } from '@/lib/supabase/types'
-
-type LeaderboardProfile = Pick<Profile, 'id' | 'full_name' | 'email' | 'avatar_url' | 'total_points'>
+import { Card, CardContent } from "@/components/ui/card";
+import { Trophy, Medal, Award } from "lucide-react";
+import { cn } from "@/lib/utils/cn";
+import { getLeaderboard, getCurrentProfile } from "@/lib/data/profiles";
+import { redirect } from "next/navigation";
 
 export default async function LeaderboardPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const profile = await getCurrentProfile();
 
-  const { data } = await supabase
-    .from('profiles')
-    .select('id, full_name, email, avatar_url, total_points')
-    .order('total_points', { ascending: false })
-    .limit(50)
+  if (!profile) {
+    redirect("/login");
+  }
 
-  const profiles = (data || []) as LeaderboardProfile[]
-  const currentUserRank = profiles.findIndex((p) => p.id === user?.id)
+  const profiles = await getLeaderboard(20);
+
+  const currentUserRank = profiles.findIndex((p) => p.id === profile.id);
 
   const getRankIcon = (index: number) => {
-    if (index === 0) return <Trophy className="h-5 w-5 text-amber-400" />
-    if (index === 1) return <Medal className="h-5 w-5 text-zinc-400" />
-    if (index === 2) return <Award className="h-5 w-5 text-amber-600" />
-    return <span className="text-sm font-medium text-zinc-500">#{index + 1}</span>
-  }
+    if (index === 0) return <Trophy className="h-5 w-5 text-amber-400" />;
+    if (index === 1) return <Medal className="h-5 w-5 text-zinc-400" />;
+    if (index === 2) return <Award className="h-5 w-5 text-amber-600" />;
+    return (
+      <span className="text-sm font-medium text-zinc-500">#{index + 1}</span>
+    );
+  };
 
   const getRankBg = (index: number) => {
-    if (index === 0) return 'border-amber-500/20 bg-amber-500/5'
-    if (index === 1) return 'border-zinc-400/20 bg-zinc-400/5'
-    if (index === 2) return 'border-amber-600/20 bg-amber-600/5'
-    return ''
-  }
+    if (index === 0) return "border-amber-500/20 bg-amber-500/5";
+    if (index === 1) return "border-zinc-400/20 bg-zinc-400/5";
+    if (index === 2) return "border-amber-600/20 bg-amber-600/5";
+    return "";
+  };
 
   return (
     <div className="space-y-6">
@@ -49,7 +47,7 @@ export default async function LeaderboardPage() {
               </span>
             </div>
             <span className="text-sm text-zinc-400">
-              {profiles?.[currentUserRank]?.total_points || 0} points
+              {profiles[currentUserRank]?.total_points ?? 0} points
             </span>
           </CardContent>
         </Card>
@@ -64,40 +62,40 @@ export default async function LeaderboardPage() {
             </div>
           ) : (
             <div className="divide-y divide-zinc-800">
-              {profiles.map((profile, index) => (
+              {profiles.map((p, index) => (
                 <div
-                  key={profile.id}
+                  key={p.id}
                   className={cn(
-                    'flex items-center gap-4 px-4 py-3',
-                    profile.id === user?.id && 'bg-emerald-500/5',
+                    "flex items-center gap-4 px-4 py-3",
+                    p.id === profile.id && "bg-emerald-500/5",
                     getRankBg(index)
                   )}
                 >
                   <div className="flex h-8 w-8 items-center justify-center">
                     {getRankIcon(index)}
                   </div>
-                  {profile.avatar_url ? (
+                  {p.avatar_url ? (
                     <img
-                      src={profile.avatar_url}
+                      src={p.avatar_url}
                       alt=""
                       className="h-8 w-8 rounded-full"
                     />
                   ) : (
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-700 text-xs font-medium text-white">
-                      {profile.full_name?.[0] || profile.email?.[0] || '?'}
+                      {p.full_name?.[0] || "?"}
                     </div>
                   )}
-                  <div className="flex-1 min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-white">
-                      {profile.full_name || profile.email?.split('@')[0]}
+                      {p.full_name || "Anonymous"}
                     </p>
-                    {profile.id === user?.id && (
+                    {p.id === profile.id && (
                       <p className="text-xs text-emerald-400">You</p>
                     )}
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-medium text-white">
-                      {profile.total_points.toLocaleString()}
+                      {p.total_points.toLocaleString()}
                     </p>
                     <p className="text-xs text-zinc-500">points</p>
                   </div>
@@ -108,5 +106,5 @@ export default async function LeaderboardPage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

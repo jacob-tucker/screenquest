@@ -1,94 +1,106 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Textarea } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { StatusBadge } from '@/components/ui/badge'
-import { VideoPlayer } from '@/components/submissions/video-player'
-import { ArrowLeft, User, Target, Star, Check, X, Trash2 } from 'lucide-react'
-import Link from 'next/link'
-import { formatDateTime } from '@/lib/utils/format'
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { StatusBadge } from "@/components/ui/badge";
+import { VideoPlayer } from "@/components/submissions/video-player";
+import {
+  ArrowLeft,
+  User,
+  Target,
+  Star,
+  Check,
+  X,
+  Trash2,
+} from "lucide-react";
+import Link from "next/link";
+import { formatDateTime } from "@/lib/utils/format";
+import { reviewSubmission, deleteSubmission } from "@/lib/actions/submissions";
 
 interface SubmissionDetails {
-  id: string
-  status: 'pending' | 'approved' | 'rejected'
-  admin_notes: string | null
-  points_awarded: number
-  created_at: string
-  reviewed_at: string | null
-  user: { email: string; full_name: string | null }
-  campaign: { title: string; points_reward: number; target_url: string }
-  recording_path: string
-  recording_duration: number | null
+  id: string;
+  status: "pending" | "approved" | "rejected";
+  admin_notes: string | null;
+  points_awarded: number;
+  created_at: string;
+  reviewed_at: string | null;
+  user: { email: string; full_name: string | null };
+  campaign: { title: string; points_reward: number; target_url: string };
+  recording_path: string;
+  recording_duration: number | null;
 }
 
 interface SubmissionReviewProps {
-  submission: SubmissionDetails
-  videoUrl: string | null
+  submission: SubmissionDetails;
+  videoUrl: string | null;
 }
 
-export function SubmissionReview({ submission, videoUrl }: SubmissionReviewProps) {
-  const router = useRouter()
-  const supabase = createClient()
-  const [submitting, setSubmitting] = useState(false)
-  const [notes, setNotes] = useState(submission.admin_notes || '')
+export function SubmissionReview({
+  submission,
+  videoUrl,
+}: SubmissionReviewProps) {
+  const router = useRouter();
+  const [submitting, setSubmitting] = useState(false);
+  const [notes, setNotes] = useState(submission.admin_notes || "");
+  const [error, setError] = useState<string | null>(null);
 
   const handleReview = async (approve: boolean) => {
-    setSubmitting(true)
+    setSubmitting(true);
+    setError(null);
+
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const result = await reviewSubmission(
+        submission.id,
+        approve,
+        notes || undefined
+      );
 
-      const { error } = await (supabase
-        .from('submissions') as any)
-        .update({
-          status: approve ? 'approved' : 'rejected',
-          admin_notes: notes || null,
-          reviewed_by: user?.id,
-        })
-        .eq('id', submission.id)
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
 
-      if (error) throw error
-
-      router.push('/admin/submissions')
-    } catch (error) {
-      console.error('Review error:', error)
-      alert('Failed to update submission')
+      router.push("/admin/submissions");
+      router.refresh();
+    } catch (err) {
+      console.error("Review error:", err);
+      setError("Failed to update submission");
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete this submission? This cannot be undone.')) {
-      return
+    if (
+      !confirm(
+        "Are you sure you want to delete this submission? This cannot be undone."
+      )
+    ) {
+      return;
     }
 
-    setSubmitting(true)
+    setSubmitting(true);
+    setError(null);
+
     try {
-      const { error: storageError } = await supabase.storage
-        .from('recordings')
-        .remove([submission.recording_path])
+      const result = await deleteSubmission(submission.id);
 
-      if (storageError) throw storageError
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
 
-      const { error } = await (supabase
-        .from('submissions') as any)
-        .delete()
-        .eq('id', submission.id)
-
-      if (error) throw error
-
-      router.push('/admin/submissions')
-    } catch (error) {
-      console.error('Delete error:', error)
-      alert('Failed to delete submission')
+      router.push("/admin/submissions");
+    } catch (err) {
+      console.error("Delete error:", err);
+      setError("Failed to delete submission");
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   return (
     <div className="space-y-6">
@@ -142,7 +154,9 @@ export function SubmissionReview({ submission, videoUrl }: SubmissionReviewProps
             </div>
             <div>
               <p className="text-xs text-zinc-400">Reward</p>
-              <p className="text-sm text-white">{submission.campaign.points_reward} points</p>
+              <p className="text-sm text-white">
+                {submission.campaign.points_reward} points
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -161,13 +175,21 @@ export function SubmissionReview({ submission, videoUrl }: SubmissionReviewProps
             />
           ) : (
             <div className="flex aspect-video items-center justify-center rounded-lg bg-zinc-800">
-              <p className="text-sm text-zinc-400">Failed to load video</p>
+              <p className="text-sm text-zinc-400">
+                Video playback unavailable
+              </p>
             </div>
           )}
         </CardContent>
       </Card>
 
-      {submission.status === 'pending' && (
+      {error && (
+        <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-3">
+          <p className="text-sm text-red-400">{error}</p>
+        </div>
+      )}
+
+      {submission.status === "pending" && (
         <Card>
           <CardHeader>
             <CardTitle>Review Decision</CardTitle>
@@ -202,7 +224,7 @@ export function SubmissionReview({ submission, videoUrl }: SubmissionReviewProps
         </Card>
       )}
 
-      {submission.status !== 'pending' && submission.admin_notes && (
+      {submission.status !== "pending" && submission.admin_notes && (
         <Card>
           <CardHeader>
             <CardTitle>Admin Notes</CardTitle>
@@ -218,12 +240,12 @@ export function SubmissionReview({ submission, videoUrl }: SubmissionReviewProps
           onClick={handleDelete}
           disabled={submitting}
           variant="secondary"
-          className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+          className="text-red-400 hover:bg-red-500/10 hover:text-red-300"
         >
           <Trash2 className="h-4 w-4" />
           Delete Submission
         </Button>
       </div>
     </div>
-  )
+  );
 }

@@ -1,61 +1,41 @@
-import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { updateSession } from "@/lib/supabase/middleware";
 
 export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
-    request,
-  });
+  const { user, supabase, supabaseResponse } = await updateSession(request);
+  const { pathname } = request.nextUrl;
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          );
-          supabaseResponse = NextResponse.next({
-            request,
-          });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          );
-        },
-      },
-    }
-  );
+  // If Supabase is not configured, allow all requests (development without env vars)
+  if (!supabase) {
+    return supabaseResponse;
+  }
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Protected routes that require authentication
+  const isProtectedRoute =
+    pathname.startsWith("/dashboard") || pathname.startsWith("/admin");
 
-  const path = request.nextUrl.pathname;
+  // Admin-only routes
+  const isAdminRoute = pathname.startsWith("/admin");
 
-  // Protected routes - redirect to login if not authenticated
-  const protectedPaths = ["/dashboard", "/admin"];
-  const isProtectedPath = protectedPaths.some(
-    (p) => path.startsWith(p) || path === "/"
-  );
+  // Auth routes (login page)
+  const isAuthRoute = pathname === "/login";
 
-  if (isProtectedPath && !user && path !== "/login") {
+  // If user is not authenticated and trying to access protected route
+  if (!user && isProtectedRoute) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
-  // Redirect logged in users away from login
-  if (path === "/login" && user) {
+  // If user is authenticated and trying to access login page, redirect to dashboard
+  if (user && isAuthRoute) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);
   }
 
-  // Admin routes - check role
-  if (path.startsWith("/admin") && user) {
+  // If trying to access admin route, verify admin role
+  if (user && isAdminRoute) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("role")

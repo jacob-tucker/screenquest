@@ -1,12 +1,9 @@
 "use client";
 
 import { useEffect, useState, useMemo, use, useCallback } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { Campaign, Submission, Database } from "@/lib/supabase/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/badge";
-import { useAuth } from "@/components/auth/auth-provider";
 import {
   RecordingProvider,
   useRecording,
@@ -19,46 +16,29 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
+  Upload,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import { useUpload } from "@/lib/hooks/use-upload";
+import { createSubmission } from "@/lib/actions/submissions";
+import type { Tables } from "@/lib/supabase/types";
 
-const encodeStoragePath = (path: string) =>
-  path
-    .split("/")
-    .map((segment) => encodeURIComponent(segment))
-    .join("/");
-
-const buildStorageUploadUrl = (
-  baseUrl: string,
-  bucket: string,
-  path: string
-) => new URL(`/storage/v1/object/${bucket}/${encodeStoragePath(path)}`, baseUrl);
-
-const withTimeout = <T,>(promise: Promise<T>, ms: number, label: string) =>
-  new Promise<T>((resolve, reject) => {
-    const timeoutId = window.setTimeout(() => {
-      reject(new Error(`${label} timed out`));
-    }, ms);
-    promise
-      .then(resolve)
-      .catch(reject)
-      .finally(() => {
-        window.clearTimeout(timeoutId);
-      });
-  });
+type Campaign = Tables<"campaigns">;
+type Submission = Tables<"submissions">;
 
 function CampaignContent({ campaignId }: { campaignId: string }) {
-  const [supabase] = useState(() => createClient());
-  const { user, session, loading: authLoading } = useAuth();
   const router = useRouter();
+  const supabase = createClient();
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [submission, setSubmission] = useState<Submission | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
   const { recordedBlob, isRecording, resetRecording, duration } =
     useRecording();
+  const { uploading, progress, error: uploadError, uploadVideo } = useUpload();
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const videoUrl = useMemo(() => {
     if (recordedBlob) {
@@ -76,109 +56,78 @@ function CampaignContent({ campaignId }: { campaignId: string }) {
   }, [videoUrl]);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        if (authLoading) {
-          return;
-        }
-        if (!user) {
-          setUserId(null);
-          setLoading(false);
-          return;
-        }
+    const loadData = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-        setUserId(user.id);
-
-        const [campaignRes, submissionRes] = await Promise.all([
-          supabase.from("campaigns").select("*").eq("id", campaignId).single(),
-          supabase
-            .from("submissions")
-            .select("*")
-            .eq("campaign_id", campaignId)
-            .eq("user_id", user.id)
-            .maybeSingle(),
-        ]);
-
-        setCampaign(campaignRes.data);
-        setSubmission(submissionRes.data);
-      } catch (error) {
-        console.error("Failed to fetch data:", error);
-      } finally {
-        if (!authLoading) {
-          setLoading(false);
-        }
+      if (!user) {
+        router.push("/login");
+        return;
       }
+
+      setUserId(user.id);
+
+      // Fetch campaign
+      const { data: campaignData } = await supabase
+        .from("campaigns")
+        .select("*")
+        .eq("id", campaignId)
+        .single();
+
+      setCampaign(campaignData);
+
+      // Check for existing submission
+      if (campaignData) {
+        const { data: submissionData } = await supabase
+          .from("submissions")
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("campaign_id", campaignId)
+          .single();
+
+        setSubmission(submissionData);
+      }
+
+      setLoading(false);
     };
 
-    fetchData();
-  }, [campaignId, authLoading, user, supabase]);
+    loadData();
+  }, [campaignId, supabase, router]);
 
   const handleSubmit = useCallback(async () => {
     if (!recordedBlob || !campaign || !userId) {
-      console.log("Missing data:", {
-        hasBlob: !!recordedBlob,
-        hasCampaign: !!campaign,
-        userId,
-      });
       return;
     }
 
-    setSubmitting(true);
+    setSubmitError(null);
+
     try {
-      const fileName = `${userId}/${campaign.id}-${Date.now()}.webm`;
+      // Upload video
+      const path = await uploadVideo(recordedBlob, campaign.id);
 
-      console.log("here");
-      if (!session) throw new Error("No active session");
-
-      const uploadUrl = buildStorageUploadUrl(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        "recordings",
-        fileName
-      );
-
-      const controller = new AbortController();
-      const uploadResponse = await withTimeout(
-        fetch(uploadUrl.toString(), {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-            apikey: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-            "Content-Type": "video/webm",
-            "x-upsert": "false",
-          },
-          body: recordedBlob,
-          signal: controller.signal,
-        }).finally(() => controller.abort()),
-        60000,
-        "Upload"
-      );
-
-      if (!uploadResponse.ok) {
-        const errorText = await uploadResponse.text();
-        throw new Error(errorText || "Upload failed");
+      if (!path) {
+        setSubmitError("Failed to upload recording");
+        return;
       }
 
-      console.log("not getting here");
+      // Create submission record
+      const result = await createSubmission(campaign.id, path, duration);
 
-      const { error: insertError } = await (
-        supabase.from("submissions") as any
-      ).insert({
-        user_id: userId,
-        campaign_id: campaign.id,
-        recording_path: fileName,
-        recording_duration: duration,
-      });
+      if (result.error) {
+        setSubmitError(result.error);
+        return;
+      }
 
-      if (insertError) throw insertError;
-
-      router.push("/dashboard");
+      // Refresh to show submission status
+      router.refresh();
+      setSubmission(result.data as Submission);
+      resetRecording();
     } catch (error) {
       console.error("Submit error:", error);
-      alert("Failed to submit recording. Please try again.");
-    } finally {
-      setSubmitting(false);
+      setSubmitError("Failed to submit recording. Please try again.");
     }
-  }, [recordedBlob, campaign, userId, duration, supabase, router]);
+  }, [recordedBlob, campaign, userId, uploadVideo, duration, router, resetRecording]);
 
   if (loading) {
     return (
@@ -331,22 +280,47 @@ function CampaignContent({ campaignId }: { campaignId: string }) {
               controls
               className="w-full rounded-lg"
             />
+
+            {uploading && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-zinc-400">
+                  <Upload className="h-4 w-4 animate-pulse" />
+                  Uploading... {progress}%
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-zinc-800">
+                  <div
+                    className="h-full bg-emerald-500 transition-all"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {(submitError || uploadError) && (
+              <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-3">
+                <p className="text-sm text-red-400">
+                  {submitError || uploadError}
+                </p>
+              </div>
+            )}
+
             <div className="flex gap-2">
               <Button
                 type="button"
                 onClick={resetRecording}
                 variant="secondary"
                 className="flex-1"
+                disabled={uploading}
               >
                 Record Again
               </Button>
               <Button
                 type="button"
                 onClick={handleSubmit}
-                disabled={submitting}
+                disabled={uploading}
                 className="flex-1"
               >
-                {submitting ? "Submitting..." : "Submit Recording"}
+                {uploading ? "Uploading..." : "Submit Recording"}
               </Button>
             </div>
           </CardContent>

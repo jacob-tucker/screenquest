@@ -1,28 +1,14 @@
-import { createClient } from '@/lib/supabase/server'
-import { Card, CardContent } from '@/components/ui/card'
-import { StatusBadge } from '@/components/ui/badge'
-import { formatRelativeTime } from '@/lib/utils/format'
-import Link from 'next/link'
-
-type SubmissionWithRelations = {
-  id: string
-  status: 'pending' | 'approved' | 'rejected'
-  created_at: string
-  user: { email: string; full_name: string | null } | null
-  campaign: { title: string; points_reward: number } | null
-}
+import { Card, CardContent } from "@/components/ui/card";
+import { StatusBadge } from "@/components/ui/badge";
+import { formatRelativeTime } from "@/lib/utils/format";
+import Link from "next/link";
+import { getAllSubmissions } from "@/lib/data/submissions";
 
 export default async function AdminSubmissionsPage() {
-  const supabase = await createClient()
+  const submissions = await getAllSubmissions();
 
-  const { data } = await supabase
-    .from('submissions')
-    .select('*, user:profiles!submissions_user_id_fkey(email, full_name), campaign:campaigns!submissions_campaign_id_fkey(title, points_reward)')
-    .order('created_at', { ascending: false })
-
-  const submissions = (data || []) as SubmissionWithRelations[]
-  const pending = submissions.filter((s) => s.status === 'pending')
-  const reviewed = submissions.filter((s) => s.status !== 'pending')
+  const pending = submissions.filter((s) => s.status === "pending");
+  const reviewed = submissions.filter((s) => s.status !== "pending");
 
   return (
     <div className="space-y-6">
@@ -44,16 +30,21 @@ export default async function AdminSubmissionsPage() {
         ) : (
           <div className="space-y-2">
             {pending.map((submission) => (
-              <Link key={submission.id} href={`/admin/submissions/${submission.id}`}>
-                <Card className="hover:border-zinc-700 transition-colors">
+              <Link
+                key={submission.id}
+                href={`/admin/submissions/${submission.id}`}
+              >
+                <Card className="transition-colors hover:border-zinc-700">
                   <CardContent className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-white">
-                        {(submission.campaign as any)?.title}
+                        {submission.campaigns?.title}
                       </p>
                       <p className="text-xs text-zinc-400">
-                        by {(submission.user as any)?.full_name || (submission.user as any)?.email} •{' '}
-                        {formatRelativeTime(submission.created_at)}
+                        by{" "}
+                        {submission.profiles?.full_name ||
+                          submission.profiles?.email}{" "}
+                        • {formatRelativeTime(submission.created_at)}
                       </p>
                     </div>
                     <StatusBadge status={submission.status} />
@@ -78,16 +69,21 @@ export default async function AdminSubmissionsPage() {
         ) : (
           <div className="space-y-2">
             {reviewed.map((submission) => (
-              <Link key={submission.id} href={`/admin/submissions/${submission.id}`}>
-                <Card className="hover:border-zinc-700 transition-colors">
+              <Link
+                key={submission.id}
+                href={`/admin/submissions/${submission.id}`}
+              >
+                <Card className="transition-colors hover:border-zinc-700">
                   <CardContent className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-white">
-                        {(submission.campaign as any)?.title}
+                        {submission.campaigns?.title}
                       </p>
                       <p className="text-xs text-zinc-400">
-                        by {(submission.user as any)?.full_name || (submission.user as any)?.email} •{' '}
-                        {formatRelativeTime(submission.created_at)}
+                        by{" "}
+                        {submission.profiles?.full_name ||
+                          submission.profiles?.email}{" "}
+                        • {formatRelativeTime(submission.created_at)}
                       </p>
                     </div>
                     <StatusBadge status={submission.status} />
@@ -99,5 +95,5 @@ export default async function AdminSubmissionsPage() {
         )}
       </div>
     </div>
-  )
+  );
 }

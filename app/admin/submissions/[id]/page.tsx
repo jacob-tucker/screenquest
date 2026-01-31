@@ -1,45 +1,50 @@
-import { createClient } from '@/lib/supabase/server'
-import { notFound } from 'next/navigation'
-import { SubmissionReview } from './SubmissionReview'
+import { notFound } from "next/navigation";
+import { SubmissionReview } from "./SubmissionReview";
+import { getSubmission } from "@/lib/data/submissions";
+import { getSignedVideoUrl } from "@/lib/actions/storage";
 
-interface SubmissionDetails {
-  id: string
-  status: 'pending' | 'approved' | 'rejected'
-  admin_notes: string | null
-  points_awarded: number
-  created_at: string
-  reviewed_at: string | null
-  user: { email: string; full_name: string | null }
-  campaign: { title: string; points_reward: number; target_url: string }
-  recording_path: string
-  recording_duration: number | null
-}
+export default async function SubmissionReviewPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
 
-export default async function SubmissionReviewPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
-  const supabase = await createClient()
+  const submission = await getSubmission(id);
 
-  const { data } = await supabase
-    .from('submissions')
-    .select('*, user:profiles!submissions_user_id_fkey(email, full_name), campaign:campaigns!submissions_campaign_id_fkey(title, points_reward, target_url)')
-    .eq('id', id)
-    .single()
-
-  if (!data) {
-    notFound()
+  if (!submission) {
+    notFound();
   }
 
-  const submission = data as unknown as SubmissionDetails
+  // Get signed URL for the recording
+  let videoUrl: string | null = null;
+  if (submission.recording_path) {
+    const result = await getSignedVideoUrl(submission.recording_path);
+    if (result.url) {
+      videoUrl = result.url;
+    }
+  }
 
-  // Generate signed URL server-side
-  const { data: urlData } = await supabase.storage
-    .from('recordings')
-    .createSignedUrl(submission.recording_path, 3600)
+  // Transform data to match expected interface
+  const submissionData = {
+    id: submission.id,
+    status: submission.status as "pending" | "approved" | "rejected",
+    admin_notes: submission.admin_notes,
+    points_awarded: submission.points_awarded ?? 0,
+    created_at: submission.created_at,
+    reviewed_at: submission.reviewed_at,
+    user: {
+      email: submission.profiles?.email ?? "",
+      full_name: submission.profiles?.full_name ?? null,
+    },
+    campaign: {
+      title: submission.campaigns?.title ?? "",
+      points_reward: submission.campaigns?.points_reward ?? 0,
+      target_url: submission.campaigns?.target_url ?? "",
+    },
+    recording_path: submission.recording_path,
+    recording_duration: submission.recording_duration,
+  };
 
-  return (
-    <SubmissionReview
-      submission={submission}
-      videoUrl={urlData?.signedUrl || null}
-    />
-  )
+  return <SubmissionReview submission={submissionData} videoUrl={videoUrl} />;
 }

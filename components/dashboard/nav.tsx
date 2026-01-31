@@ -2,9 +2,8 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Monitor, LayoutDashboard, Target, Trophy, Settings, LogOut, Shield } from 'lucide-react'
+import { Monitor, LayoutDashboard, Target, Trophy, LogOut, Shield } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
-import { useAuth } from '@/components/auth/auth-provider'
 
 const userLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -12,9 +11,17 @@ const userLinks = [
   { href: '/dashboard/leaderboard', label: 'Leaderboard', icon: Trophy },
 ]
 
+// Mock profile - will be replaced with real auth later
+const mockProfile = {
+  full_name: 'Demo User',
+  email: 'demo@example.com',
+  avatar_url: null,
+  total_points: 0,
+  role: 'admin' as const, // Show admin link for now
+}
+
 export function Nav() {
   const pathname = usePathname()
-  const { profile, signOut } = useAuth()
 
   return (
     <nav className="fixed left-0 top-0 z-40 flex h-screen w-56 flex-col border-r border-zinc-800 bg-zinc-950">
@@ -49,7 +56,7 @@ export function Nav() {
           })}
         </div>
 
-        {profile?.role === 'admin' && (
+        {mockProfile.role === 'admin' && (
           <div className="mt-6">
             <p className="mb-2 px-3 text-xs font-medium uppercase text-zinc-500">Admin</p>
             <Link
@@ -70,29 +77,21 @@ export function Nav() {
 
       <div className="border-t border-zinc-800 p-3">
         <div className="mb-2 flex items-center gap-2 px-3 py-2">
-          {profile?.avatar_url ? (
-            <img
-              src={profile.avatar_url}
-              alt=""
-              className="h-8 w-8 rounded-full"
-            />
-          ) : (
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-700 text-xs font-medium text-white">
-              {profile?.full_name?.[0] || profile?.email?.[0] || '?'}
-            </div>
-          )}
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-700 text-xs font-medium text-white">
+            {mockProfile.full_name?.[0] || '?'}
+          </div>
           <div className="flex-1 overflow-hidden">
             <p className="truncate text-sm font-medium text-white">
-              {profile?.full_name || 'User'}
+              {mockProfile.full_name || 'User'}
             </p>
             <p className="truncate text-xs text-zinc-400">
-              {profile?.total_points || 0} pts
+              {mockProfile.total_points || 0} pts
             </p>
           </div>
         </div>
         <button
-          onClick={signOut}
-          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-zinc-400 transition-colors hover:bg-zinc-800/50 hover:text-white"
+          disabled
+          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-zinc-500 cursor-not-allowed"
         >
           <LogOut className="h-4 w-4" />
           Sign out

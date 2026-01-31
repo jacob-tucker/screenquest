@@ -1,21 +1,62 @@
-import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Plus, Star, ExternalLink } from 'lucide-react'
 import Link from 'next/link'
 import { formatDate } from '@/lib/utils/format'
-import { Campaign } from '@/lib/supabase/types'
+import { Campaign } from '@/lib/types'
+
+// Mock data - will be replaced with real data fetching later
+const mockCampaigns: Campaign[] = [
+  {
+    id: '1',
+    title: 'Test Checkout Flow',
+    description: 'Complete a purchase flow on the demo e-commerce site.',
+    target_url: 'https://demo.example.com/shop',
+    points_reward: 50,
+    is_active: true,
+    created_by: '1',
+    created_at: new Date(Date.now() - 7 * 86400000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: '2',
+    title: 'Search Functionality Test',
+    description: 'Test the search feature by searching for various products.',
+    target_url: 'https://demo.example.com/search',
+    points_reward: 30,
+    is_active: true,
+    created_by: '1',
+    created_at: new Date(Date.now() - 5 * 86400000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: '3',
+    title: 'User Registration Flow',
+    description: 'Complete the user registration process.',
+    target_url: 'https://demo.example.com/register',
+    points_reward: 40,
+    is_active: true,
+    created_by: '1',
+    created_at: new Date(Date.now() - 3 * 86400000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: '4',
+    title: 'Old Campaign',
+    description: 'This campaign is no longer active.',
+    target_url: 'https://old.example.com',
+    points_reward: 25,
+    is_active: false,
+    created_by: '1',
+    created_at: new Date(Date.now() - 30 * 86400000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+]
 
 export default async function AdminCampaignsPage() {
-  const supabase = await createClient()
-
-  const { data } = await supabase
-    .from('campaigns')
-    .select('*')
-    .order('created_at', { ascending: false })
-
-  const campaigns = (data || []) as Campaign[]
+  // TODO: Replace with real data fetching
+  const campaigns = mockCampaigns
 
   return (
     <div className="space-y-6">

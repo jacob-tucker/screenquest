@@ -1,9 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Input, Textarea } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft } from 'lucide-react'
@@ -11,7 +10,6 @@ import Link from 'next/link'
 
 export default function NewCampaignPage() {
   const router = useRouter()
-  const supabase = createClient()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -20,28 +18,9 @@ export default function NewCampaignPage() {
     setLoading(true)
     setError(null)
 
-    const form = e.currentTarget
-    const formData = new FormData(form)
-
-    const title = formData.get('title') as string
-    const description = formData.get('description') as string
-    const target_url = formData.get('target_url') as string
-    const points_reward = parseInt(formData.get('points_reward') as string, 10)
-
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('Not authenticated')
-
-      const { error: insertError } = await (supabase.from('campaigns') as any).insert({
-        title,
-        description,
-        target_url,
-        points_reward,
-        created_by: user.id,
-      })
-
-      if (insertError) throw insertError
-
+      // TODO: Implement actual campaign creation when auth is re-added
+      alert('Campaign creation is temporarily disabled. Auth will be re-added later.')
       router.push('/admin/campaigns')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create campaign')

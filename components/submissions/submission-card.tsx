@@ -1,6 +1,6 @@
 import { StatusBadge } from '@/components/ui/badge'
 import { formatRelativeTime } from '@/lib/utils/format'
-import { Submission, Campaign } from '@/lib/supabase/types'
+import { Submission, Campaign } from '@/lib/types'
 import { Video, Clock, Star } from 'lucide-react'
 
 interface SubmissionCardProps {

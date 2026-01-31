@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/input'
@@ -32,26 +31,14 @@ interface SubmissionReviewProps {
 
 export function SubmissionReview({ submission, videoUrl }: SubmissionReviewProps) {
   const router = useRouter()
-  const supabase = createClient()
   const [submitting, setSubmitting] = useState(false)
   const [notes, setNotes] = useState(submission.admin_notes || '')
 
   const handleReview = async (approve: boolean) => {
     setSubmitting(true)
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-
-      const { error } = await (supabase
-        .from('submissions') as any)
-        .update({
-          status: approve ? 'approved' : 'rejected',
-          admin_notes: notes || null,
-          reviewed_by: user?.id,
-        })
-        .eq('id', submission.id)
-
-      if (error) throw error
-
+      // TODO: Implement actual review when auth is re-added
+      alert('Review functionality is temporarily disabled. Auth will be re-added later.')
       router.push('/admin/submissions')
     } catch (error) {
       console.error('Review error:', error)
@@ -68,19 +55,8 @@ export function SubmissionReview({ submission, videoUrl }: SubmissionReviewProps
 
     setSubmitting(true)
     try {
-      const { error: storageError } = await supabase.storage
-        .from('recordings')
-        .remove([submission.recording_path])
-
-      if (storageError) throw storageError
-
-      const { error } = await (supabase
-        .from('submissions') as any)
-        .delete()
-        .eq('id', submission.id)
-
-      if (error) throw error
-
+      // TODO: Implement actual deletion when auth is re-added
+      alert('Delete functionality is temporarily disabled. Auth will be re-added later.')
       router.push('/admin/submissions')
     } catch (error) {
       console.error('Delete error:', error)
@@ -161,7 +137,7 @@ export function SubmissionReview({ submission, videoUrl }: SubmissionReviewProps
             />
           ) : (
             <div className="flex aspect-video items-center justify-center rounded-lg bg-zinc-800">
-              <p className="text-sm text-zinc-400">Failed to load video</p>
+              <p className="text-sm text-zinc-400">Video playback temporarily unavailable</p>
             </div>
           )}
         </CardContent>

@@ -1,28 +1,54 @@
-import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Star, ExternalLink } from 'lucide-react'
 import Link from 'next/link'
-import { Campaign, Submission } from '@/lib/supabase/types'
+import { Campaign, Submission } from '@/lib/types'
+
+// Mock data - will be replaced with real data fetching later
+const mockCampaigns: Campaign[] = [
+  {
+    id: '1',
+    title: 'Test Checkout Flow',
+    description: 'Complete a purchase flow on the demo e-commerce site. Add items to cart, proceed through checkout, and complete the mock payment.',
+    target_url: 'https://demo.example.com/shop',
+    points_reward: 50,
+    is_active: true,
+    created_by: '1',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: '2',
+    title: 'Search Functionality Test',
+    description: 'Test the search feature by searching for various products and filtering results.',
+    target_url: 'https://demo.example.com/search',
+    points_reward: 30,
+    is_active: true,
+    created_by: '1',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: '3',
+    title: 'User Registration Flow',
+    description: 'Complete the user registration process including email verification.',
+    target_url: 'https://demo.example.com/register',
+    points_reward: 40,
+    is_active: true,
+    created_by: '1',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+]
+
+const mockSubmissions: Pick<Submission, 'campaign_id' | 'status'>[] = [
+  { campaign_id: '1', status: 'approved' },
+]
 
 export default async function CampaignsPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  const [campaignsResult, submissionsResult] = await Promise.all([
-    supabase
-      .from('campaigns')
-      .select('*')
-      .eq('is_active', true)
-      .order('created_at', { ascending: false }),
-    supabase
-      .from('submissions')
-      .select('campaign_id, status')
-      .eq('user_id', user!.id),
-  ])
-
-  const campaigns = (campaignsResult.data || []) as Campaign[]
-  const submissions = (submissionsResult.data || []) as Pick<Submission, 'campaign_id' | 'status'>[]
+  // TODO: Replace with real data fetching
+  const campaigns = mockCampaigns
+  const submissions = mockSubmissions
 
   const getSubmissionStatus = (campaignId: string) => {
     const submission = submissions.find((s) => s.campaign_id === campaignId)

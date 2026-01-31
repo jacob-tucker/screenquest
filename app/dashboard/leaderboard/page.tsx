@@ -1,23 +1,28 @@
-import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent } from '@/components/ui/card'
 import { Trophy, Medal, Award } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
-import { Profile } from '@/lib/supabase/types'
+import { Profile } from '@/lib/types'
 
 type LeaderboardProfile = Pick<Profile, 'id' | 'full_name' | 'email' | 'avatar_url' | 'total_points'>
 
+// Mock data - will be replaced with real data fetching later
+const mockProfiles: LeaderboardProfile[] = [
+  { id: '1', full_name: 'Alice Johnson', email: 'alice@example.com', avatar_url: null, total_points: 1250 },
+  { id: '2', full_name: 'Bob Smith', email: 'bob@example.com', avatar_url: null, total_points: 980 },
+  { id: '3', full_name: 'Carol Williams', email: 'carol@example.com', avatar_url: null, total_points: 875 },
+  { id: '4', full_name: 'Demo User', email: 'demo@example.com', avatar_url: null, total_points: 150 },
+  { id: '5', full_name: 'Eve Davis', email: 'eve@example.com', avatar_url: null, total_points: 120 },
+  { id: '6', full_name: 'Frank Brown', email: 'frank@example.com', avatar_url: null, total_points: 95 },
+  { id: '7', full_name: 'Grace Miller', email: 'grace@example.com', avatar_url: null, total_points: 60 },
+  { id: '8', full_name: 'Henry Wilson', email: 'henry@example.com', avatar_url: null, total_points: 45 },
+]
+
+const mockCurrentUserId = '4' // Demo User
+
 export default async function LeaderboardPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  const { data } = await supabase
-    .from('profiles')
-    .select('id, full_name, email, avatar_url, total_points')
-    .order('total_points', { ascending: false })
-    .limit(50)
-
-  const profiles = (data || []) as LeaderboardProfile[]
-  const currentUserRank = profiles.findIndex((p) => p.id === user?.id)
+  // TODO: Replace with real data fetching
+  const profiles = mockProfiles
+  const currentUserRank = profiles.findIndex((p) => p.id === mockCurrentUserId)
 
   const getRankIcon = (index: number) => {
     if (index === 0) return <Trophy className="h-5 w-5 text-amber-400" />
@@ -69,7 +74,7 @@ export default async function LeaderboardPage() {
                   key={profile.id}
                   className={cn(
                     'flex items-center gap-4 px-4 py-3',
-                    profile.id === user?.id && 'bg-emerald-500/5',
+                    profile.id === mockCurrentUserId && 'bg-emerald-500/5',
                     getRankBg(index)
                   )}
                 >
@@ -91,7 +96,7 @@ export default async function LeaderboardPage() {
                     <p className="truncate text-sm font-medium text-white">
                       {profile.full_name || profile.email?.split('@')[0]}
                     </p>
-                    {profile.id === user?.id && (
+                    {profile.id === mockCurrentUserId && (
                       <p className="text-xs text-emerald-400">You</p>
                     )}
                   </div>

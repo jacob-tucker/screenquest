@@ -1,4 +1,3 @@
-import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent } from '@/components/ui/card'
 import { StatusBadge } from '@/components/ui/badge'
 import { formatRelativeTime } from '@/lib/utils/format'
@@ -12,15 +11,48 @@ type SubmissionWithRelations = {
   campaign: { title: string; points_reward: number } | null
 }
 
+// Mock data - will be replaced with real data fetching later
+const mockSubmissions: SubmissionWithRelations[] = [
+  {
+    id: '1',
+    status: 'pending',
+    created_at: new Date(Date.now() - 3600000).toISOString(),
+    user: { email: 'alice@example.com', full_name: 'Alice Johnson' },
+    campaign: { title: 'Test Checkout Flow', points_reward: 50 },
+  },
+  {
+    id: '2',
+    status: 'pending',
+    created_at: new Date(Date.now() - 7200000).toISOString(),
+    user: { email: 'bob@example.com', full_name: 'Bob Smith' },
+    campaign: { title: 'Search Functionality Test', points_reward: 30 },
+  },
+  {
+    id: '3',
+    status: 'pending',
+    created_at: new Date(Date.now() - 10800000).toISOString(),
+    user: { email: 'carol@example.com', full_name: 'Carol Williams' },
+    campaign: { title: 'User Registration Flow', points_reward: 40 },
+  },
+  {
+    id: '4',
+    status: 'approved',
+    created_at: new Date(Date.now() - 86400000).toISOString(),
+    user: { email: 'dave@example.com', full_name: 'Dave Miller' },
+    campaign: { title: 'Test Checkout Flow', points_reward: 50 },
+  },
+  {
+    id: '5',
+    status: 'rejected',
+    created_at: new Date(Date.now() - 172800000).toISOString(),
+    user: { email: 'eve@example.com', full_name: 'Eve Davis' },
+    campaign: { title: 'Search Functionality Test', points_reward: 30 },
+  },
+]
+
 export default async function AdminSubmissionsPage() {
-  const supabase = await createClient()
-
-  const { data } = await supabase
-    .from('submissions')
-    .select('*, user:profiles!submissions_user_id_fkey(email, full_name), campaign:campaigns!submissions_campaign_id_fkey(title, points_reward)')
-    .order('created_at', { ascending: false })
-
-  const submissions = (data || []) as SubmissionWithRelations[]
+  // TODO: Replace with real data fetching
+  const submissions = mockSubmissions
   const pending = submissions.filter((s) => s.status === 'pending')
   const reviewed = submissions.filter((s) => s.status !== 'pending')
 
@@ -49,10 +81,10 @@ export default async function AdminSubmissionsPage() {
                   <CardContent className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-white">
-                        {(submission.campaign as any)?.title}
+                        {submission.campaign?.title}
                       </p>
                       <p className="text-xs text-zinc-400">
-                        by {(submission.user as any)?.full_name || (submission.user as any)?.email} •{' '}
+                        by {submission.user?.full_name || submission.user?.email} •{' '}
                         {formatRelativeTime(submission.created_at)}
                       </p>
                     </div>
@@ -83,10 +115,10 @@ export default async function AdminSubmissionsPage() {
                   <CardContent className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-white">
-                        {(submission.campaign as any)?.title}
+                        {submission.campaign?.title}
                       </p>
                       <p className="text-xs text-zinc-400">
-                        by {(submission.user as any)?.full_name || (submission.user as any)?.email} •{' '}
+                        by {submission.user?.full_name || submission.user?.email} •{' '}
                         {formatRelativeTime(submission.created_at)}
                       </p>
                     </div>

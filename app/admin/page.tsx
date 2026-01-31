@@ -1,38 +1,26 @@
-import { createClient } from '@/lib/supabase/server'
 import { StatsCard } from '@/components/dashboard/stats-card'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Users, Target, FileCheck, Clock } from 'lucide-react'
 import Link from 'next/link'
 
+// Mock data - will be replaced with real data fetching later
+const mockStats = {
+  users: 42,
+  campaigns: 8,
+  submissions: 156,
+  pending: 12,
+}
+
+const mockRecentSubmissions = [
+  { id: '1', campaign: { title: 'Test Checkout Flow' }, user: { email: 'alice@example.com', full_name: 'Alice Johnson' } },
+  { id: '2', campaign: { title: 'Search Functionality Test' }, user: { email: 'bob@example.com', full_name: 'Bob Smith' } },
+  { id: '3', campaign: { title: 'User Registration Flow' }, user: { email: 'carol@example.com', full_name: 'Carol Williams' } },
+]
+
 export default async function AdminPage() {
-  const supabase = await createClient()
-
-  const [usersResult, campaignsResult, submissionsResult, pendingResult] = await Promise.all([
-    supabase.from('profiles').select('id', { count: 'exact' }),
-    supabase.from('campaigns').select('id', { count: 'exact' }),
-    supabase.from('submissions').select('id', { count: 'exact' }),
-    supabase.from('submissions').select('id', { count: 'exact' }).eq('status', 'pending'),
-  ])
-
-  const stats = {
-    users: usersResult.count || 0,
-    campaigns: campaignsResult.count || 0,
-    submissions: submissionsResult.count || 0,
-    pending: pendingResult.count || 0,
-  }
-
-  const { data } = await supabase
-    .from('submissions')
-    .select('*, user:profiles!submissions_user_id_fkey(email, full_name), campaign:campaigns!submissions_campaign_id_fkey(title)')
-    .eq('status', 'pending')
-    .order('created_at', { ascending: false })
-    .limit(5)
-
-  const recentSubmissions = (data || []) as Array<{
-    id: string
-    campaign: { title: string } | null
-    user: { email: string; full_name: string | null } | null
-  }>
+  // TODO: Replace with real data fetching
+  const stats = mockStats
+  const recentSubmissions = mockRecentSubmissions
 
   return (
     <div className="space-y-6">
@@ -75,10 +63,10 @@ export default async function AdminPage() {
                 >
                   <div>
                     <p className="text-sm font-medium text-white">
-                      {(submission.campaign as any)?.title}
+                      {submission.campaign?.title}
                     </p>
                     <p className="text-xs text-zinc-400">
-                      by {(submission.user as any)?.full_name || (submission.user as any)?.email}
+                      by {submission.user?.full_name || submission.user?.email}
                     </p>
                   </div>
                   <span className="text-xs text-amber-400">Review</span>

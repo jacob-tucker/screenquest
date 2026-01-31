@@ -1,12 +1,10 @@
 "use client";
 
 import { useEffect, useState, useMemo, use, useCallback } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { Campaign, Submission, Database } from "@/lib/supabase/types";
+import { Campaign, Submission } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/badge";
-import { useAuth } from "@/components/auth/auth-provider";
 import {
   RecordingProvider,
   useRecording,
@@ -23,38 +21,47 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-const encodeStoragePath = (path: string) =>
-  path
-    .split("/")
-    .map((segment) => encodeURIComponent(segment))
-    .join("/");
-
-const buildStorageUploadUrl = (
-  baseUrl: string,
-  bucket: string,
-  path: string
-) => new URL(`/storage/v1/object/${bucket}/${encodeStoragePath(path)}`, baseUrl);
-
-const withTimeout = <T,>(promise: Promise<T>, ms: number, label: string) =>
-  new Promise<T>((resolve, reject) => {
-    const timeoutId = window.setTimeout(() => {
-      reject(new Error(`${label} timed out`));
-    }, ms);
-    promise
-      .then(resolve)
-      .catch(reject)
-      .finally(() => {
-        window.clearTimeout(timeoutId);
-      });
-  });
+// Mock data - will be replaced with real data fetching later
+const mockCampaigns: Record<string, Campaign> = {
+  '1': {
+    id: '1',
+    title: 'Test Checkout Flow',
+    description: 'Complete a purchase flow on the demo e-commerce site. Add items to cart, proceed through checkout, and complete the mock payment.',
+    target_url: 'https://demo.example.com/shop',
+    points_reward: 50,
+    is_active: true,
+    created_by: '1',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  '2': {
+    id: '2',
+    title: 'Search Functionality Test',
+    description: 'Test the search feature by searching for various products and filtering results.',
+    target_url: 'https://demo.example.com/search',
+    points_reward: 30,
+    is_active: true,
+    created_by: '1',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  '3': {
+    id: '3',
+    title: 'User Registration Flow',
+    description: 'Complete the user registration process including email verification.',
+    target_url: 'https://demo.example.com/register',
+    points_reward: 40,
+    is_active: true,
+    created_by: '1',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+};
 
 function CampaignContent({ campaignId }: { campaignId: string }) {
-  const [supabase] = useState(() => createClient());
-  const { user, session, loading: authLoading } = useAuth();
   const router = useRouter();
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [submission, setSubmission] = useState<Submission | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const { recordedBlob, isRecording, resetRecording, duration } =
@@ -76,109 +83,50 @@ function CampaignContent({ campaignId }: { campaignId: string }) {
   }, [videoUrl]);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        if (authLoading) {
-          return;
-        }
-        if (!user) {
-          setUserId(null);
-          setLoading(false);
-          return;
-        }
-
-        setUserId(user.id);
-
-        const [campaignRes, submissionRes] = await Promise.all([
-          supabase.from("campaigns").select("*").eq("id", campaignId).single(),
-          supabase
-            .from("submissions")
-            .select("*")
-            .eq("campaign_id", campaignId)
-            .eq("user_id", user.id)
-            .maybeSingle(),
-        ]);
-
-        setCampaign(campaignRes.data);
-        setSubmission(submissionRes.data);
-      } catch (error) {
-        console.error("Failed to fetch data:", error);
-      } finally {
-        if (!authLoading) {
-          setLoading(false);
-        }
+    // Mock data loading
+    const loadData = () => {
+      const mockCampaign = mockCampaigns[campaignId];
+      setCampaign(mockCampaign || null);
+      // Mock: campaign 1 has an approved submission
+      if (campaignId === '1') {
+        setSubmission({
+          id: '1',
+          user_id: '1',
+          campaign_id: '1',
+          recording_path: 'recordings/demo.webm',
+          recording_duration: 120,
+          status: 'approved',
+          admin_notes: null,
+          reviewed_by: null,
+          reviewed_at: null,
+          points_awarded: 50,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
       }
+      setLoading(false);
     };
 
-    fetchData();
-  }, [campaignId, authLoading, user, supabase]);
+    loadData();
+  }, [campaignId]);
 
   const handleSubmit = useCallback(async () => {
-    if (!recordedBlob || !campaign || !userId) {
-      console.log("Missing data:", {
-        hasBlob: !!recordedBlob,
-        hasCampaign: !!campaign,
-        userId,
-      });
+    if (!recordedBlob || !campaign) {
       return;
     }
 
     setSubmitting(true);
     try {
-      const fileName = `${userId}/${campaign.id}-${Date.now()}.webm`;
-
-      console.log("here");
-      if (!session) throw new Error("No active session");
-
-      const uploadUrl = buildStorageUploadUrl(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        "recordings",
-        fileName
-      );
-
-      const controller = new AbortController();
-      const uploadResponse = await withTimeout(
-        fetch(uploadUrl.toString(), {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-            apikey: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-            "Content-Type": "video/webm",
-            "x-upsert": "false",
-          },
-          body: recordedBlob,
-          signal: controller.signal,
-        }).finally(() => controller.abort()),
-        60000,
-        "Upload"
-      );
-
-      if (!uploadResponse.ok) {
-        const errorText = await uploadResponse.text();
-        throw new Error(errorText || "Upload failed");
-      }
-
-      console.log("not getting here");
-
-      const { error: insertError } = await (
-        supabase.from("submissions") as any
-      ).insert({
-        user_id: userId,
-        campaign_id: campaign.id,
-        recording_path: fileName,
-        recording_duration: duration,
-      });
-
-      if (insertError) throw insertError;
-
-      router.push("/dashboard");
+      // TODO: Implement actual submission when auth is re-added
+      alert('Submission functionality is temporarily disabled. Auth will be re-added later.');
+      resetRecording();
     } catch (error) {
       console.error("Submit error:", error);
       alert("Failed to submit recording. Please try again.");
     } finally {
       setSubmitting(false);
     }
-  }, [recordedBlob, campaign, userId, duration, supabase, router]);
+  }, [recordedBlob, campaign, resetRecording]);
 
   if (loading) {
     return (

@@ -1,27 +1,37 @@
-'use client'
+"use client";
 
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { Monitor, LayoutDashboard, Target, Trophy, LogOut, Shield } from 'lucide-react'
-import { cn } from '@/lib/utils/cn'
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import {
+  Monitor,
+  LayoutDashboard,
+  Target,
+  Trophy,
+  LogOut,
+  Shield,
+} from "lucide-react";
+import { cn } from "@/lib/utils/cn";
 
 const userLinks = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/dashboard/campaigns', label: 'Campaigns', icon: Target },
-  { href: '/dashboard/leaderboard', label: 'Leaderboard', icon: Trophy },
-]
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard/campaigns", label: "Campaigns", icon: Target },
+  { href: "/dashboard/leaderboard", label: "Leaderboard", icon: Trophy },
+];
 
-// Mock profile - will be replaced with real auth later
-const mockProfile = {
-  full_name: 'Demo User',
-  email: 'demo@example.com',
-  avatar_url: null,
-  total_points: 0,
-  role: 'admin' as const, // Show admin link for now
+interface Profile {
+  full_name: string | null;
+  email: string;
+  avatar_url: string | null;
+  total_points: number;
+  role: string;
 }
 
-export function Nav() {
-  const pathname = usePathname()
+interface NavProps {
+  profile: Profile;
+}
+
+export function Nav({ profile }: NavProps) {
+  const pathname = usePathname();
 
   return (
     <nav className="fixed left-0 top-0 z-40 flex h-screen w-56 flex-col border-r border-zinc-800 bg-zinc-950">
@@ -35,37 +45,40 @@ export function Nav() {
       <div className="flex-1 overflow-y-auto p-3">
         <div className="space-y-1">
           {userLinks.map((link) => {
-            const isActive = link.href === '/dashboard'
-              ? pathname === '/dashboard'
-              : pathname.startsWith(link.href)
+            const isActive =
+              link.href === "/dashboard"
+                ? pathname === "/dashboard"
+                : pathname.startsWith(link.href);
             return (
               <Link
                 key={link.href}
                 href={link.href}
                 className={cn(
-                  'flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors',
+                  "flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors",
                   isActive
-                    ? 'bg-zinc-800 text-white'
-                    : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-white'
+                    ? "bg-zinc-800 text-white"
+                    : "text-zinc-400 hover:bg-zinc-800/50 hover:text-white"
                 )}
               >
                 <link.icon className="h-4 w-4" />
                 {link.label}
               </Link>
-            )
+            );
           })}
         </div>
 
-        {mockProfile.role === 'admin' && (
+        {profile.role === "admin" && (
           <div className="mt-6">
-            <p className="mb-2 px-3 text-xs font-medium uppercase text-zinc-500">Admin</p>
+            <p className="mb-2 px-3 text-xs font-medium uppercase text-zinc-500">
+              Admin
+            </p>
             <Link
               href="/admin"
               className={cn(
-                'flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors',
-                pathname.startsWith('/admin')
-                  ? 'bg-zinc-800 text-white'
-                  : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-white'
+                "flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors",
+                pathname.startsWith("/admin")
+                  ? "bg-zinc-800 text-white"
+                  : "text-zinc-400 hover:bg-zinc-800/50 hover:text-white"
               )}
             >
               <Shield className="h-4 w-4" />
@@ -77,26 +90,34 @@ export function Nav() {
 
       <div className="border-t border-zinc-800 p-3">
         <div className="mb-2 flex items-center gap-2 px-3 py-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-700 text-xs font-medium text-white">
-            {mockProfile.full_name?.[0] || '?'}
-          </div>
-          <div className="flex-1 overflow-hidden">
+          {profile.avatar_url ? (
+            <img
+              src={profile.avatar_url}
+              alt=""
+              className="h-8 w-8 rounded-full"
+            />
+          ) : (
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-700 text-xs font-medium text-white">
+              {profile.full_name?.[0] || profile.email?.[0] || "?"}
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-white">
-              {mockProfile.full_name || 'User'}
+              {profile.full_name || profile.email?.split("@")[0] || "User"}
             </p>
             <p className="truncate text-xs text-zinc-400">
-              {mockProfile.total_points || 0} pts
+              {profile.total_points ?? 0} pts
             </p>
           </div>
         </div>
-        <button
-          disabled
-          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-zinc-500 cursor-not-allowed"
+        <Link
+          href="/auth/signout"
+          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-zinc-400 transition-colors hover:bg-zinc-800/50 hover:text-white"
         >
           <LogOut className="h-4 w-4" />
           Sign out
-        </button>
+        </Link>
       </div>
     </nav>
-  )
+  );
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useMemo, use, useCallback } from "react";
-import { Campaign, Submission } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/badge";
@@ -17,55 +16,29 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
+  Upload,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import { useUpload } from "@/lib/hooks/use-upload";
+import { createSubmission } from "@/lib/actions/submissions";
+import type { Tables } from "@/lib/supabase/types";
 
-// Mock data - will be replaced with real data fetching later
-const mockCampaigns: Record<string, Campaign> = {
-  '1': {
-    id: '1',
-    title: 'Test Checkout Flow',
-    description: 'Complete a purchase flow on the demo e-commerce site. Add items to cart, proceed through checkout, and complete the mock payment.',
-    target_url: 'https://demo.example.com/shop',
-    points_reward: 50,
-    is_active: true,
-    created_by: '1',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  '2': {
-    id: '2',
-    title: 'Search Functionality Test',
-    description: 'Test the search feature by searching for various products and filtering results.',
-    target_url: 'https://demo.example.com/search',
-    points_reward: 30,
-    is_active: true,
-    created_by: '1',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  '3': {
-    id: '3',
-    title: 'User Registration Flow',
-    description: 'Complete the user registration process including email verification.',
-    target_url: 'https://demo.example.com/register',
-    points_reward: 40,
-    is_active: true,
-    created_by: '1',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-};
+type Campaign = Tables<"campaigns">;
+type Submission = Tables<"submissions">;
 
 function CampaignContent({ campaignId }: { campaignId: string }) {
   const router = useRouter();
+  const supabase = createClient();
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [submission, setSubmission] = useState<Submission | null>(null);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
   const { recordedBlob, isRecording, resetRecording, duration } =
     useRecording();
+  const { uploading, progress, error: uploadError, uploadVideo } = useUpload();
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const videoUrl = useMemo(() => {
     if (recordedBlob) {
@@ -83,50 +56,78 @@ function CampaignContent({ campaignId }: { campaignId: string }) {
   }, [videoUrl]);
 
   useEffect(() => {
-    // Mock data loading
-    const loadData = () => {
-      const mockCampaign = mockCampaigns[campaignId];
-      setCampaign(mockCampaign || null);
-      // Mock: campaign 1 has an approved submission
-      if (campaignId === '1') {
-        setSubmission({
-          id: '1',
-          user_id: '1',
-          campaign_id: '1',
-          recording_path: 'recordings/demo.webm',
-          recording_duration: 120,
-          status: 'approved',
-          admin_notes: null,
-          reviewed_by: null,
-          reviewed_at: null,
-          points_awarded: 50,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        });
+    const loadData = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        router.push("/login");
+        return;
       }
+
+      setUserId(user.id);
+
+      // Fetch campaign
+      const { data: campaignData } = await supabase
+        .from("campaigns")
+        .select("*")
+        .eq("id", campaignId)
+        .single();
+
+      setCampaign(campaignData);
+
+      // Check for existing submission
+      if (campaignData) {
+        const { data: submissionData } = await supabase
+          .from("submissions")
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("campaign_id", campaignId)
+          .single();
+
+        setSubmission(submissionData);
+      }
+
       setLoading(false);
     };
 
     loadData();
-  }, [campaignId]);
+  }, [campaignId, supabase, router]);
 
   const handleSubmit = useCallback(async () => {
-    if (!recordedBlob || !campaign) {
+    if (!recordedBlob || !campaign || !userId) {
       return;
     }
 
-    setSubmitting(true);
+    setSubmitError(null);
+
     try {
-      // TODO: Implement actual submission when auth is re-added
-      alert('Submission functionality is temporarily disabled. Auth will be re-added later.');
+      // Upload video
+      const path = await uploadVideo(recordedBlob, campaign.id);
+
+      if (!path) {
+        setSubmitError("Failed to upload recording");
+        return;
+      }
+
+      // Create submission record
+      const result = await createSubmission(campaign.id, path, duration);
+
+      if (result.error) {
+        setSubmitError(result.error);
+        return;
+      }
+
+      // Refresh to show submission status
+      router.refresh();
+      setSubmission(result.data as Submission);
       resetRecording();
     } catch (error) {
       console.error("Submit error:", error);
-      alert("Failed to submit recording. Please try again.");
-    } finally {
-      setSubmitting(false);
+      setSubmitError("Failed to submit recording. Please try again.");
     }
-  }, [recordedBlob, campaign, resetRecording]);
+  }, [recordedBlob, campaign, userId, uploadVideo, duration, router, resetRecording]);
 
   if (loading) {
     return (
@@ -279,22 +280,47 @@ function CampaignContent({ campaignId }: { campaignId: string }) {
               controls
               className="w-full rounded-lg"
             />
+
+            {uploading && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-zinc-400">
+                  <Upload className="h-4 w-4 animate-pulse" />
+                  Uploading... {progress}%
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-zinc-800">
+                  <div
+                    className="h-full bg-emerald-500 transition-all"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {(submitError || uploadError) && (
+              <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-3">
+                <p className="text-sm text-red-400">
+                  {submitError || uploadError}
+                </p>
+              </div>
+            )}
+
             <div className="flex gap-2">
               <Button
                 type="button"
                 onClick={resetRecording}
                 variant="secondary"
                 className="flex-1"
+                disabled={uploading}
               >
                 Record Again
               </Button>
               <Button
                 type="button"
                 onClick={handleSubmit}
-                disabled={submitting}
+                disabled={uploading}
                 className="flex-1"
               >
-                {submitting ? "Submitting..." : "Submit Recording"}
+                {uploading ? "Uploading..." : "Submit Recording"}
               </Button>
             </div>
           </CardContent>

@@ -1,33 +1,42 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { Card, CardContent } from '@/components/ui/card'
-import { Input, Textarea } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { ArrowLeft } from 'lucide-react'
-import Link from 'next/link'
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input, Textarea } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import { createCampaign } from "@/lib/actions/campaigns";
 
 export default function NewCampaignPage() {
-  const router = useRouter()
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    setLoading(true)
-    setError(null)
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
 
     try {
-      // TODO: Implement actual campaign creation when auth is re-added
-      alert('Campaign creation is temporarily disabled. Auth will be re-added later.')
-      router.push('/admin/campaigns')
+      const formData = new FormData(e.currentTarget);
+      const result = await createCampaign(formData);
+
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+
+      router.push("/admin/campaigns");
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create campaign')
+      setError(
+        err instanceof Error ? err.message : "Failed to create campaign"
+      );
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="space-y-6">
@@ -78,13 +87,11 @@ export default function NewCampaignPage() {
               required
             />
 
-            {error && (
-              <p className="text-sm text-red-400">{error}</p>
-            )}
+            {error && <p className="text-sm text-red-400">{error}</p>}
 
             <div className="flex gap-2">
               <Button type="submit" disabled={loading}>
-                {loading ? 'Creating...' : 'Create Campaign'}
+                {loading ? "Creating..." : "Create Campaign"}
               </Button>
               <Link href="/admin/campaigns">
                 <Button type="button" variant="secondary">
@@ -96,5 +103,5 @@ export default function NewCampaignPage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

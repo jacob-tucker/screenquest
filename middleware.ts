@@ -27,7 +27,7 @@ export async function middleware(request: NextRequest) {
     const redirectResponse = NextResponse.redirect(url);
     // Copy all cookies from supabaseResponse to the redirect response
     supabaseResponse.cookies.getAll().forEach((cookie) => {
-      redirectResponse.cookies.set(cookie.name, cookie.value);
+      redirectResponse.cookies.set(cookie);
     });
     return redirectResponse;
   };

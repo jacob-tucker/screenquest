@@ -1,24 +1,14 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import type { Database } from "@/lib/supabase/types";
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
   const next = searchParams.get("next") ?? "/dashboard";
 
   const forwardedHost = request.headers.get("x-forwarded-host");
-  const isLocalEnv = process.env.NODE_ENV === "development";
-
-  // Determine the redirect URL based on environment
-  let redirectBase: string;
-  if (isLocalEnv) {
-    redirectBase = origin;
-  } else if (forwardedHost) {
-    redirectBase = `https://${forwardedHost}`;
-  } else {
-    redirectBase = origin;
-  }
+  const redirectBase = forwardedHost ? `https://${forwardedHost}` : origin;
 
   if (code) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -30,12 +20,7 @@ export async function GET(request: Request) {
     const supabase = createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
       cookies: {
         getAll() {
-          // Parse cookies from the request
-          const cookieHeader = request.headers.get("cookie") || "";
-          return cookieHeader.split(";").map((cookie) => {
-            const [name, ...rest] = cookie.trim().split("=");
-            return { name, value: rest.join("=") };
-          }).filter((c) => c.name);
+          return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
           // Set cookies on the response we're going to return

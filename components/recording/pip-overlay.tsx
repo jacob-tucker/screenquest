@@ -1,76 +1,104 @@
-'use client'
+"use client";
 
-import { useEffect, useRef } from 'react'
-import { createPortal } from 'react-dom'
-import { formatDuration } from '@/lib/utils/format'
-import { StopCircle } from 'lucide-react'
+import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
+import { formatDuration } from "@/lib/utils/format";
+import { StopCircle, ExternalLink } from "lucide-react";
 
 interface PipOverlayProps {
-  pipWindow: Window | null
-  duration: number
-  instruction?: string
-  onStop: () => void
+  pipWindow: Window | null;
+  duration: number;
+  instruction?: string;
+  targetUrl?: string;
+  onStop: () => void;
 }
 
-function PipContent({ duration, instruction, onStop }: Omit<PipOverlayProps, 'pipWindow'>) {
+function PipContent({
+  duration,
+  instruction,
+  targetUrl,
+  onStop,
+}: Omit<PipOverlayProps, "pipWindow">) {
   return (
-    <div className="flex h-full w-full items-center justify-center bg-zinc-950 p-3">
-      <div className="w-full rounded-xl bg-zinc-900 p-4">
-        <div className="flex items-center justify-center gap-2">
-          <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
-          <span className="text-sm font-medium text-white">Recording</span>
-          <span className="text-zinc-600">•</span>
-          <p className="font-mono text-sm font-semibold text-white">
-            {formatDuration(duration)}
-          </p>
-        </div>
+    <div className="flex h-full w-full flex-col bg-zinc-950 p-2 overflow-hidden">
+      <div className="flex items-center justify-center gap-2 py-1 shrink-0">
+        <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
+        <span className="text-xs font-medium text-white">REC</span>
+        <span className="font-mono text-xs font-semibold text-white">
+          {formatDuration(duration)}
+        </span>
+      </div>
 
-        {instruction && (
-          <p className="mt-3 max-h-20 overflow-y-auto text-center text-sm leading-relaxed text-zinc-400">
-            {instruction}
-          </p>
+      {instruction && (
+        <p className="my-2 flex-1 min-h-0 overflow-y-auto text-center text-xs leading-relaxed text-zinc-300 px-1">
+          {instruction}
+        </p>
+      )}
+
+      <div className="space-y-1.5 shrink-0">
+        {targetUrl && (
+          <a
+            href={targetUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-zinc-900 transition-colors hover:bg-zinc-200"
+          >
+            <ExternalLink className="h-3 w-3" />
+            Go to Website
+          </a>
         )}
 
         <button
           onClick={onStop}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-500"
+          className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-red-500"
         >
-          <StopCircle className="h-4 w-4" />
+          <StopCircle className="h-3 w-3" />
           Stop
         </button>
       </div>
     </div>
-  )
+  );
 }
 
-export function PipOverlay({ pipWindow, duration, instruction, onStop }: PipOverlayProps) {
-  const containerRef = useRef<HTMLDivElement | null>(null)
+export function PipOverlay({
+  pipWindow,
+  duration,
+  instruction,
+  targetUrl,
+  onStop,
+}: PipOverlayProps) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (!pipWindow) return
+    if (!pipWindow) return;
 
     // Create container in PiP window
-    const container = pipWindow.document.createElement('div')
-    container.id = 'pip-root'
-    container.style.cssText = 'width: 100%; height: 100%;'
-    pipWindow.document.body.appendChild(container)
-    pipWindow.document.body.style.margin = '0'
-    pipWindow.document.body.style.padding = '0'
-    pipWindow.document.body.style.overflow = 'hidden'
-    containerRef.current = container
+    const container = pipWindow.document.createElement("div");
+    container.id = "pip-root";
+    container.style.cssText = "width: 100%; height: 100%;";
+    pipWindow.document.body.appendChild(container);
+    pipWindow.document.body.style.margin = "0";
+    pipWindow.document.body.style.padding = "0";
+    pipWindow.document.body.style.overflow = "hidden";
+    containerRef.current = container;
 
     return () => {
-      container.remove()
-      containerRef.current = null
-    }
-  }, [pipWindow])
+      container.remove();
+      containerRef.current = null;
+    };
+  }, [pipWindow]);
 
   if (!pipWindow || !containerRef.current) {
-    return null
+    return null;
   }
 
   return createPortal(
-    <PipContent duration={duration} instruction={instruction} onStop={onStop} />,
+    <PipContent
+      duration={duration}
+      instruction={instruction}
+      targetUrl={targetUrl}
+      onStop={onStop}
+    />,
     containerRef.current
-  )
+  );
 }

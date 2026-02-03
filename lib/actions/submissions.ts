@@ -18,16 +18,28 @@ export async function createSubmission(
     return { error: "Unauthorized" };
   }
 
-  // Check if user already has a submission for this campaign
-  const { data: existingSubmission } = await supabase
-    .from("submissions")
-    .select("id")
-    .eq("user_id", user.id)
-    .eq("campaign_id", campaignId)
+  // Fetch the campaign to get max_submissions_per_user
+  const { data: campaign } = await supabase
+    .from("campaigns")
+    .select("max_submissions_per_user")
+    .eq("id", campaignId)
     .single();
 
-  if (existingSubmission) {
-    return { error: "You have already submitted for this campaign" };
+  if (!campaign) {
+    return { error: "Campaign not found" };
+  }
+
+  // Count existing submissions for this user on this campaign
+  const { count: existingCount } = await supabase
+    .from("submissions")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .eq("campaign_id", campaignId);
+
+  if ((existingCount ?? 0) >= campaign.max_submissions_per_user) {
+    return {
+      error: "You have reached the maximum submissions for this campaign",
+    };
   }
 
   const { data, error } = await supabase

@@ -87,6 +87,15 @@ export default function NewCampaignPage() {
               required
             />
 
+            <Input
+              name="max_submissions_per_user"
+              label="Max Submissions Per User"
+              type="number"
+              min={1}
+              defaultValue={1}
+              required
+            />
+
             {error && <p className="text-sm text-red-400">{error}</p>}
 
             <div className="flex gap-2">

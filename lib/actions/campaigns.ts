@@ -29,6 +29,8 @@ export async function createCampaign(formData: FormData) {
   const description = formData.get("description") as string;
   const targetUrl = formData.get("target_url") as string;
   const pointsReward = parseInt(formData.get("points_reward") as string) || 100;
+  const maxSubmissionsPerUser =
+    parseInt(formData.get("max_submissions_per_user") as string) || 1;
 
   const { data, error } = await supabase
     .from("campaigns")
@@ -37,6 +39,7 @@ export async function createCampaign(formData: FormData) {
       description,
       target_url: targetUrl,
       points_reward: pointsReward,
+      max_submissions_per_user: maxSubmissionsPerUser,
       created_by: user.id,
       is_active: true,
     })
@@ -79,6 +82,8 @@ export async function updateCampaign(id: string, formData: FormData) {
   const description = formData.get("description") as string;
   const targetUrl = formData.get("target_url") as string;
   const pointsReward = parseInt(formData.get("points_reward") as string) || 100;
+  const maxSubmissionsPerUser =
+    parseInt(formData.get("max_submissions_per_user") as string) || 1;
   const isActive = formData.get("is_active") === "true";
 
   const { data, error } = await supabase
@@ -88,6 +93,7 @@ export async function updateCampaign(id: string, formData: FormData) {
       description,
       target_url: targetUrl,
       points_reward: pointsReward,
+      max_submissions_per_user: maxSubmissionsPerUser,
       is_active: isActive,
     })
     .eq("id", id)

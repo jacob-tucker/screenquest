@@ -1,45 +1,54 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { useRecording } from './recording-provider'
-import { usePip } from '@/lib/hooks/use-pip'
-import { PipOverlay } from './pip-overlay'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { formatDuration } from '@/lib/utils/format'
-import { Video, StopCircle, AlertCircle } from 'lucide-react'
+import { useState, useEffect, useCallback } from "react";
+import { useRecording } from "./recording-provider";
+import { usePip } from "@/lib/hooks/use-pip";
+import { PipOverlay } from "./pip-overlay";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Video, AlertCircle } from "lucide-react";
 
 interface RecordingControlsProps {
-  instruction?: string
+  instruction?: string;
+  targetUrl?: string;
 }
 
-export function RecordingControls({ instruction }: RecordingControlsProps = {}) {
-  const { isRecording, duration, startRecording, stopRecording, error } = useRecording()
-  const { isSupported: isPipSupported, pipWindow, openPip, closePip } = usePip()
-  const [pipEnabled, setPipEnabled] = useState(true)
+export function RecordingControls({
+  instruction,
+  targetUrl,
+}: RecordingControlsProps = {}) {
+  const { isRecording, duration, startRecording, stopRecording, error } =
+    useRecording();
+  const {
+    isSupported: isPipSupported,
+    pipWindow,
+    openPip,
+    closePip,
+  } = usePip();
 
   const handleStart = async () => {
-    await startRecording()
-    if (pipEnabled && isPipSupported) {
+    await startRecording();
+    // Open PiP on start (requires user gesture)
+    if (isPipSupported) {
       try {
-        await openPip(320, 240)
+        await openPip(320, 240);
       } catch (e) {
         // PiP failed, but recording continues
       }
     }
-  }
+  };
 
-  const handleStop = () => {
-    stopRecording()
-    closePip()
-  }
+  const handleStop = useCallback(() => {
+    stopRecording();
+    closePip();
+  }, [stopRecording, closePip]);
 
   useEffect(() => {
     // Close PiP when recording stops
     if (!isRecording && pipWindow) {
-      closePip()
+      closePip();
     }
-  }, [isRecording, pipWindow, closePip])
+  }, [isRecording, pipWindow, closePip]);
 
   if (error) {
     return (
@@ -52,40 +61,20 @@ export function RecordingControls({ instruction }: RecordingControlsProps = {}) 
           </div>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   if (isRecording) {
-    return (
-      <>
-        <Card className="border-red-500/20 bg-red-500/5">
-          <CardContent className="py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="h-3 w-3 animate-pulse rounded-full bg-red-500" />
-                <div>
-                  <p className="text-sm font-medium text-white">Recording in progress</p>
-                  <p className="font-mono text-xs text-zinc-400">{formatDuration(duration)}</p>
-                </div>
-              </div>
-              <Button onClick={handleStop} variant="danger" size="sm">
-                <StopCircle className="h-4 w-4" />
-                Stop Recording
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {pipWindow && (
-          <PipOverlay
-            pipWindow={pipWindow}
-            duration={duration}
-            instruction={instruction}
-            onStop={handleStop}
-          />
-        )}
-      </>
-    )
+    // Only render PiP overlay - the main recording UI is handled by the parent
+    return pipWindow ? (
+      <PipOverlay
+        pipWindow={pipWindow}
+        duration={duration}
+        instruction={instruction}
+        targetUrl={targetUrl}
+        onStop={handleStop}
+      />
+    ) : null;
   }
 
   return (
@@ -99,7 +88,9 @@ export function RecordingControls({ instruction }: RecordingControlsProps = {}) 
             <div>
               <p className="text-sm font-medium text-white">Screen Recording</p>
               <p className="text-xs text-zinc-400">
-                {isPipSupported ? 'PiP overlay available' : 'Record your screen'}
+                {isPipSupported
+                  ? "PiP overlay available"
+                  : "Record your screen"}
               </p>
             </div>
           </div>
@@ -110,5 +101,5 @@ export function RecordingControls({ instruction }: RecordingControlsProps = {}) 
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }

@@ -25,9 +25,28 @@ export default async function CampaignsPage() {
     getUserSubmissions(profile.id),
   ]);
 
-  const getSubmissionStatus = (campaignId: string) => {
-    const submission = submissions.find((s) => s.campaign_id === campaignId);
-    return submission?.status;
+  const getCampaignSubmissions = (campaignId: string) => {
+    return submissions.filter((s) => s.campaign_id === campaignId);
+  };
+
+  const getSubmissionInfo = (campaignId: string, maxSubmissions: number) => {
+    const campaignSubmissions = getCampaignSubmissions(campaignId);
+    const count = campaignSubmissions.length;
+    const approvedCount = campaignSubmissions.filter(
+      (s) => s.status === "approved"
+    ).length;
+    const pendingCount = campaignSubmissions.filter(
+      (s) => s.status === "pending"
+    ).length;
+    const slotsRemaining = maxSubmissions - count;
+
+    return {
+      count,
+      approvedCount,
+      pendingCount,
+      slotsRemaining,
+      maxSubmissions,
+    };
   };
 
   return (
@@ -48,8 +67,19 @@ export default async function CampaignsPage() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {campaigns.map((campaign) => {
-            const status = getSubmissionStatus(campaign.id);
-            const hasSubmitted = !!status;
+            const {
+              count,
+              approvedCount,
+              pendingCount,
+              slotsRemaining,
+              maxSubmissions,
+            } = getSubmissionInfo(
+              campaign.id,
+              campaign.max_submissions_per_user
+            );
+            const allApproved = count > 0 && approvedCount === maxSubmissions;
+            const hasPending = pendingCount > 0;
+            const hasSubmissions = count > 0;
 
             return (
               <Link
@@ -79,25 +109,29 @@ export default async function CampaignsPage() {
                           {new URL(campaign.target_url).hostname}
                         </span>
                       </div>
-                      {hasSubmitted ? (
-                        <Badge
-                          variant={
-                            status === "approved"
-                              ? "success"
-                              : status === "rejected"
-                                ? "error"
-                                : "warning"
-                          }
-                        >
-                          {status === "approved"
-                            ? "Completed"
-                            : status === "rejected"
-                              ? "Rejected"
-                              : "In Review"}
-                        </Badge>
-                      ) : (
-                        <span className="text-emerald-400">Start task</span>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {maxSubmissions > 1 && hasSubmissions && (
+                          <span className="text-zinc-500">
+                            {count}/{maxSubmissions}
+                          </span>
+                        )}
+                        {allApproved ? (
+                          <Badge variant="success">Completed</Badge>
+                        ) : hasPending ? (
+                          <Badge variant="warning">In Review</Badge>
+                        ) : slotsRemaining > 0 ? (
+                          hasSubmissions ? (
+                            <span className="text-emerald-400">
+                              {slotsRemaining} slot
+                              {slotsRemaining > 1 ? "s" : ""} left
+                            </span>
+                          ) : (
+                            <span className="text-emerald-400">Start task</span>
+                          )
+                        ) : (
+                          <Badge variant="error">No slots left</Badge>
+                        )}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

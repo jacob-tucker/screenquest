@@ -2,6 +2,14 @@ import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
 export async function middleware(request: NextRequest) {
+  // Avoid auth redirects on Next.js prefetch requests (can cause cached redirects in production)
+  if (
+    request.headers.get("x-middleware-prefetch") ||
+    request.headers.get("purpose") === "prefetch"
+  ) {
+    return NextResponse.next();
+  }
+
   const { user, supabase, supabaseResponse } = await updateSession(request);
   const { pathname } = request.nextUrl;
 

@@ -7,15 +7,16 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get("code");
   const next = searchParams.get("next") ?? "/dashboard";
 
-  const forwardedHost = request.headers.get("x-forwarded-host");
-  const redirectBase = forwardedHost ? `https://${forwardedHost}` : origin;
+  const redirectBase =
+    process.env.NEXT_PUBLIC_SITE_URL ?? request.nextUrl.origin;
 
   if (code) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
     // Create response first so we can set cookies on it
-    const response = NextResponse.redirect(`${redirectBase}${next}`);
+    const nextPath = next.startsWith("/") ? next : "/dashboard";
+    const response = NextResponse.redirect(new URL(nextPath, redirectBase));
 
     const supabase = createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
       cookies: {
@@ -59,5 +60,5 @@ export async function GET(request: NextRequest) {
   }
 
   // Return the user to an error page with instructions
-  return NextResponse.redirect(`${redirectBase}/login?error=auth`);
+  return NextResponse.redirect(new URL("/login?error=auth", redirectBase));
 }

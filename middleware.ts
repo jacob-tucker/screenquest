@@ -20,18 +20,26 @@ export async function middleware(request: NextRequest) {
   // Auth routes (login page)
   const isAuthRoute = pathname === "/login";
 
+  // Helper to create redirect while preserving cookies from supabaseResponse
+  const redirectWithCookies = (pathname: string) => {
+    const url = request.nextUrl.clone();
+    url.pathname = pathname;
+    const redirectResponse = NextResponse.redirect(url);
+    // Copy all cookies from supabaseResponse to the redirect response
+    supabaseResponse.cookies.getAll().forEach((cookie) => {
+      redirectResponse.cookies.set(cookie.name, cookie.value);
+    });
+    return redirectResponse;
+  };
+
   // If user is not authenticated and trying to access protected route
   if (!user && isProtectedRoute) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
+    return redirectWithCookies("/login");
   }
 
   // If user is authenticated and trying to access login page, redirect to dashboard
   if (user && isAuthRoute) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
-    return NextResponse.redirect(url);
+    return redirectWithCookies("/dashboard");
   }
 
   // If trying to access admin route, verify admin role
@@ -43,9 +51,7 @@ export async function middleware(request: NextRequest) {
       .single();
 
     if (profile?.role !== "admin") {
-      const url = request.nextUrl.clone();
-      url.pathname = "/dashboard";
-      return NextResponse.redirect(url);
+      return redirectWithCookies("/dashboard");
     }
   }
 

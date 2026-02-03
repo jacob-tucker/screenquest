@@ -110,13 +110,15 @@ export function Nav({ profile }: NavProps) {
             </p>
           </div>
         </div>
-        <Link
-          href="/auth/signout"
-          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-zinc-400 transition-colors hover:bg-zinc-800/50 hover:text-white"
-        >
-          <LogOut className="h-4 w-4" />
-          Sign out
-        </Link>
+        <form action="/auth/signout" method="post">
+          <button
+            type="submit"
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-zinc-400 transition-colors hover:bg-zinc-800/50 hover:text-white"
+          >
+            <LogOut className="h-4 w-4" />
+            Sign out
+          </button>
+        </form>
       </div>
     </nav>
   );
